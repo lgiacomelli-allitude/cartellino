@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Calcolo Ora Uscita</title>
+<style>
+  :root {
+    --ottanio: #007B7F;
+    --zafferano: #F4A300;
+    --bianco: #FFFFFF;
+    --grigio-chiaro: #f5f5f5;
+    --grigio-scuro: #444444;
+    --rosso: #d32f2f;
+  }
+
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--grigio-chiaro);
+    color: var(--grigio-scuro);
+    margin: 0;
+    padding: 40px 20px;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+  }
+
+  .container {
+    background: var(--bianco);
+    max-width: 480px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+    padding: 30px 35px;
+    box-sizing: border-box;
+  }
+
+  h1 {
+    color: var(--ottanio);
+    text-align: center;
+    margin-bottom: 30px;
+    font-weight: 700;
+  }
+
+  label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: var(--ottanio);
+    font-size: 0.95rem;
+  }
+
+  input[type="time"] {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 1rem;
+    border: 2px solid var(--ottanio);
+    border-radius: 8px;
+    outline-offset: 2px;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    box-sizing: border-box;
+  }
+  input[type="time"]:focus {
+    border-color: var(--zafferano);
+    box-shadow: 0 0 6px var(--zafferano);
+  }
+  input[readonly] {
+    background-color: #eee;
+    color: var(--grigio-scuro);
+    cursor: default;
+  }
+
+  button {
+    margin-top: 30px;
+    width: 100%;
+    background-color: var(--zafferano);
+    color: var(--bianco);
+    border: none;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background-color 0.4s ease, transform 0.2s ease, box-shadow 0.4s ease;
+    box-shadow: 0 5px 12px rgba(244, 163, 0, 0.6);
+  }
+  button:hover {
+    background-color: #d48800;
+    box-shadow: 0 7px 15px rgba(212, 136, 0, 0.8);
+    transform: translateY(-3px);
+  }
+  button:active {
+    transform: translateY(1px);
+    box-shadow: 0 3px 8px rgba(212, 136, 0, 0.8);
+  }
+
+  .result {
+    margin-top: 30px;
+    font-weight: 700;
+    font-size: 1.2rem;
+    text-align: center;
+    color: var(--ottanio);
+    min-height: 2.2em; /* spazio per messaggi */
+    transition: color 0.3s ease;
+  }
+
+  .error {
+    color: var(--rosso);
+    font-weight: 600;
+  }
+
+  @media (max-width: 520px) {
+    body {
+      padding: 20px 15px;
+    }
+    .container {
+      padding: 25px 20px;
+      border-radius: 10px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 25px;
+    }
+    input[type="time"] {
+      padding: 8px 10px;
+      font-size: 0.9rem;
+    }
+    button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    label {
+      font-size: 0.9rem;
+    }
+    .result {
+      font-size: 1.1rem;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Calcolo Ora di Uscita</h1>
+
+  <form id="form" autocomplete="off">
+    <label for="entrata">Entrata (07:00 - 09:00):</label>
+    <input type="time" id="entrata" name="entrata" min="07:00" max="09:00" required />
+
+    <label for="pausaInizio">Inizio Pausa Pranzo (13:00 - 15:00):</label>
+    <input type="time" id="pausaInizio" name="pausaInizio" min="13:00" max="15:00" required />
+
+    <label for="pausaFine">Fine Pausa Pranzo (min. 30 min dopo inizio, max 15:00):</label>
+    <input type="time" id="pausaFine" name="pausaFine" min="13:30" max="15:00" required />
+
+    <label for="uscita">Uscita (calcolata automaticamente):</label>
+    <input type="time" id="uscita" name="uscita" readonly />
+
+    <button type="submit">Calcola Uscita</button>
+  </form>
+
+  <div id="result" class="result"></div>
+</div>
+
+<script>
+  const form = document.getElementById('form');
+  const entrataInput = document.getElementById('entrata');
+  const pausaInizioInput = document.getElementById('pausaInizio');
+  const pausaFineInput = document.getElementById('pausaFine');
+  const uscitaInput = document.getElementById('uscita');
+  const resultDiv = document.getElementById('result');
+
+  function timeToMinutes(timeStr) {
+    const [h, m] = timeStr.split(':').map(Number);
+    return h * 60 + m;
+  }
+
+  function minutesToTime(mins) {
+    let h = Math.floor(mins / 60);
+    let m = mins % 60;
+    if (h < 10) h = '0' + h;
+    if (m < 10) m = '0' + m;
+    return `${h}:${m}`;
+  }
+
+  function validateAndCalculate() {
+    resultDiv.textContent = '';
+    resultDiv.classList.remove('error');
+    uscitaInput.value = '';
+
+    const entrata = entrataInput.value;
+    const pausaInizio = pausaInizioInput.value;
+    const pausaFine = pausaFineInput.value;
+
+    if (!entrata || !pausaInizio || !pausaFine) {
+      resultDiv.textContent = 'Compila tutti i campi richiesti.';
+      resultDiv.classList.add('error');
+      return;
+    }
+
+    let entrataMin = timeToMinutes(entrata);
+    const pausaInizioMin = timeToMinutes(pausaInizio);
+    const pausaFineMin = timeToMinutes(pausaFine);
+
+    if (entrataMin < 420 || entrataMin > 540) { // 07:00 - 09:00
+      resultDiv.textContent = "L'entrata deve essere tra le 07:00 e le 09:00.";
+      resultDiv.classList.add('error');
+      return;
+    }
+
+    if (pausaInizioMin < 780 || pausaInizioMin > 900) { // 13:00 - 15:00
+      resultDiv.textContent = "L'inizio pausa deve essere tra le 13:00 e le 15:00.";
+      resultDiv.classList.add('error');
+      return;
+    }
+
+    if (pausaFineMin < pausaInizioMin + 30) {
+      resultDiv.textContent = 'La pausa deve durare almeno 30 minuti.';
+      resultDiv.classList.add('error');
+      return;
+    }
+
+    if (pausaFineMin > 900) { // max 15:00
+      resultDiv.textContent = 'La fine pausa deve essere entro le 15:00.';
+      resultDiv.classList.add('error');
+      return;
+    }
+
+    // Se entrata prima delle 8:00, il conteggio parte da 8:00
+    if (entrataMin < 480) entrataMin = 480;
+
+    const oreDaFare = 450; // 7.5 ore in minuti
+
+    const primaPausa = pausaInizioMin - entrataMin;
+    const dopoPausa = oreDaFare - primaPausa;
+
+    let uscitaMin = pausaFineMin + dopoPausa;
+    if (uscitaMin < 990) uscitaMin = 990; // uscita minima 16:30
+
+    if (uscitaMin < pausaFineMin) uscitaMin = pausaFineMin;
+
+    uscitaInput.value = minutesToTime(uscitaMin);
+
+    resultDiv.textContent = `Per completare almeno 7 ore e 30 minuti lavorativi, devi uscire alle ${uscitaInput.value}.`;
+  }
+
+  // Ricalcola e valida al volo ogni volta che cambiano i valori
+  [entrataInput, pausaInizioInput, pausaFineInput].forEach(input => {
+    input.addEventListener('input', () => {
+      validateAndCalculate();
+    });
+  });
+
+  // Blocca il submit vero, perché facciamo calcolo live
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    validateAndCalculate();
+  });
+</script>
+
+</body>
+</html>
